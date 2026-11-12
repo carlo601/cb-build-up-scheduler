@@ -113,6 +113,8 @@ st.sidebar.title("🎪 Configuration")
 
 if st.sidebar.button("🔄 Sync with Google Sheet", use_container_width=True):
     st.cache_data.clear()
+    if 'schedule_res_df' in st.session_state:
+        del st.session_state['schedule_res_df']
     st.rerun()
 
 max_shifts = st.sidebar.slider("Maximum Shifts Per Person", min_value=1, max_value=15, value=15)
@@ -157,7 +159,7 @@ with tab_crew:
 
 st.markdown("---")
 
-# --- Schedule Generator ---
+# --- Schedule Generator Button ---
 if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_width=True):
     shifts_dict = {row['Shift ID']: row for _, row in shifts_to_use.iterrows()}
     shift_ids = list(shifts_dict.keys())
@@ -213,9 +215,6 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
         st.stop()
 
     if prob.status == LpStatusOptimal:
-        st.success("🎉 Schedule successfully generated!")
-
-        # Master Schedule Construction with optimized column layout
         schedule_records = []
         total_unfilled = 0
         for s_id in shift_ids:
@@ -230,11 +229,7 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
             unfilled = len(slots) - len(assigned_people)
             total_unfilled += unfilled
             
-            # Status badge
-            if unfilled == 0:
-                status_str = "✅ Full"
-            else:
-                status_str = f"⚠️ {unfilled} Needed"
+            status_str = "✅ Full" if unfilled == 0 else f"⚠️ {unfilled} Needed"
 
             schedule_records.append({
                 "Date": s_info['Day Label'],
@@ -244,55 +239,9 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
                 "Unfilled": unfilled,
                 "Status": status_str,
                 "Assigned Crew": ", ".join(assigned_people) if assigned_people else "⚠️ UNFILLED",
-                "Assigned (Stacked)": "\n".join(assigned_people) if assigned_people else "⚠️ UNFILLED"
+                "Assigned Stacked": "<br>• " + "<br>• ".join(assigned_people) if assigned_people else "⚠️ UNFILLED"
             })
 
-        schedule_res_df = pd.DataFrame(schedule_records)
-
-        if total_unfilled > 0:
-            st.warning(f"⚠️ Notice: {total_unfilled} slots could not be filled with current availability and maximum shift cap.")
-
-        st.subheader("📋 Master Buildup Schedule")
-        
-        # Display View Selector
-        view_mode = st.radio("Display View:", ["Interactive Grid (Fixed Widths)", "Printable View (Names Stacked on Lines)"], horizontal=True)
-
-        if view_mode == "Interactive Grid (Fixed Widths)":
-            st.dataframe(
-                schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Crew"]],
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Date": st.column_config.TextColumn("Date", width="small"),
-                    "Hours": st.column_config.TextColumn("Hours", width="small"),
-                    "Task": st.column_config.TextColumn("Task", width="medium"),
-                    "Needed": st.column_config.NumberColumn("Needed", width="small"),
-                    "Unfilled": st.column_config.NumberColumn("Unfilled", width="small"),
-                    "Status": st.column_config.TextColumn("Status", width="small"),
-                    "Assigned Crew": st.column_config.TextColumn("Assigned Crew", width="large"),
-                }
-            )
-        else:
-            # Printable / Stacked View: Displays line breaks clearly
-            stacked_df = schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned (Stacked)"]].copy()
-            stacked_df.rename(columns={"Assigned (Stacked)": "Assigned Crew"}, inplace=True)
-            # Replace \n with <br> for HTML rendering in table view
-            stacked_html = stacked_df.to_html(escape=False, index=False).replace("\n", "<br>")
-            st.write(stacked_html, unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # Download Button
-        csv_download_df = schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Crew"]].copy()
-        csv_data = csv_download_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Download Master Schedule as CSV",
-            data=csv_data,
-            file_name="circus_bella_buildup_schedule.csv",
-            mime="text/csv"
-        )
-
-        # Crew Summary
         crew_counts = []
         for c in crew_names:
             assigned = [slot_to_shift[s] for s in shift_slots if x[c, s].varValue == 1]
@@ -302,17 +251,99 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
                 "Assigned Shifts": ", ".join(assigned) if assigned else "None"
             })
 
-        st.subheader("👥 Crew Assignment Summary")
+        # Save to session_state so toggling views never resets the screen
+        st.session_state['schedule_res_df'] = pd.DataFrame(schedule_records)
+        st.session_state['crew_counts_df'] = pd.DataFrame(crew_counts).sort_values(by="Total Shifts Assigned", ascending=False)
+        st.session_state['total_unfilled'] = total_unfilled
+        st.success("🎉 Schedule successfully generated!")
+        st.rerun()
+    else:
+        st.error("Could not find a feasible schedule satisfying all constraints. Try adjusting the availability or requirements.")
+
+# --- Render Schedule Section (Maintained by Session State) ---
+if 'schedule_res_df' in st.session_state:
+    schedule_res_df = st.session_state['schedule_res_df']
+    total_unfilled = st.session_state['total_unfilled']
+
+    if total_unfilled > 0:
+        st.warning(f"⚠️ Notice: {total_unfilled} slots could not be filled with current availability and maximum shift cap.")
+
+    st.subheader("📋 Master Buildup Schedule")
+    
+    view_mode = st.radio(
+        "Display View:", 
+        ["Interactive Grid (Fixed Widths)", "Printable View (Names Stacked on Lines)"], 
+        horizontal=True,
+        key="schedule_view_mode"
+    )
+
+    if view_mode == "Interactive Grid (Fixed Widths)":
+        # WIDER Date, Hours, and Task columns so nothing gets cut off
         st.dataframe(
-            pd.DataFrame(crew_counts).sort_values(by="Total Shifts Assigned", ascending=False),
+            schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Crew"]],
             use_container_width=True,
             hide_index=True,
             column_config={
-                "Crew Member": st.column_config.TextColumn("Crew Member", width="medium"),
-                "Total Shifts Assigned": st.column_config.NumberColumn("Total Shifts", width="small"),
-                "Assigned Shifts": st.column_config.TextColumn("Assigned Shifts", width="large")
+                "Date": st.column_config.TextColumn("Date", width="medium"),
+                "Hours": st.column_config.TextColumn("Hours", width="medium"),
+                "Task": st.column_config.TextColumn("Task", width="large"),
+                "Needed": st.column_config.NumberColumn("Needed", width="small"),
+                "Unfilled": st.column_config.NumberColumn("Unfilled", width="small"),
+                "Status": st.column_config.TextColumn("Status", width="small"),
+                "Assigned Crew": st.column_config.TextColumn("Assigned Crew", width="large"),
             }
         )
-
     else:
-        st.error("Could not find a feasible schedule satisfying all constraints. Try adjusting the availability or requirements.")
+        # Printable / Stacked View: Formatted cleanly with HTML table styling
+        stacked_df = schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Stacked"]].copy()
+        stacked_df.rename(columns={"Assigned Stacked": "Assigned Crew"}, inplace=True)
+        
+        table_html = stacked_df.to_html(escape=False, index=False)
+        styled_html = f"""
+        <style>
+            .clean-table table {{
+                width: 100%;
+                border-collapse: collapse;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                font-size: 14px;
+            }}
+            .clean-table th {{
+                background-color: #f0f2f6;
+                padding: 10px;
+                border: 1px solid #d3d3d3;
+                text-align: left;
+            }}
+            .clean-table td {{
+                padding: 10px;
+                border: 1px solid #e6e6e6;
+                vertical-align: top;
+            }}
+        </style>
+        <div class="clean-table">{table_html}</div>
+        """
+        st.markdown(styled_html, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Download Button
+    csv_download_df = schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Crew"]].copy()
+    csv_data = csv_download_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download Master Schedule as CSV",
+        data=csv_data,
+        file_name="circus_bella_buildup_schedule.csv",
+        mime="text/csv"
+    )
+
+    # Crew Summary
+    st.subheader("👥 Crew Assignment Summary")
+    st.dataframe(
+        st.session_state['crew_counts_df'],
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Crew Member": st.column_config.TextColumn("Crew Member", width="medium"),
+            "Total Shifts Assigned": st.column_config.NumberColumn("Total Shifts", width="small"),
+            "Assigned Shifts": st.column_config.TextColumn("Assigned Shifts", width="large")
+        }
+    )
