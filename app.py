@@ -278,15 +278,15 @@ if 'schedule_res_df' in st.session_state:
     )
 
     if view_mode == "Interactive Grid (Fixed Widths)":
-        # WIDER Date, Hours, and Task columns so nothing gets cut off
+        # Restored to the exact widths that generated "table only.png"
         st.dataframe(
             schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Crew"]],
             use_container_width=True,
             hide_index=True,
             column_config={
-                "Date": st.column_config.TextColumn("Date", width="medium"),
-                "Hours": st.column_config.TextColumn("Hours", width="medium"),
-                "Task": st.column_config.TextColumn("Task", width="large"),
+                "Date": st.column_config.TextColumn("Date", width="small"),
+                "Hours": st.column_config.TextColumn("Hours", width="small"),
+                "Task": st.column_config.TextColumn("Task", width="medium"),
                 "Needed": st.column_config.NumberColumn("Needed", width="small"),
                 "Unfilled": st.column_config.NumberColumn("Unfilled", width="small"),
                 "Status": st.column_config.TextColumn("Status", width="small"),
