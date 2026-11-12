@@ -10,7 +10,7 @@ st.set_page_config(layout="wide", page_title="Circus Bella — Shift Scheduler",
 SHEET_ID = "15XBLzxZaRYYmUKahJh7Bx-ggPh2-qjW8PETZBRRyT3Q"
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
-# --- Master Shift Blueprint (Updated Defaults & Labels) ---
+# --- Master Shift Blueprint ---
 DEFAULT_SHIFTS = [
     {"Shift ID": "Nov24_AM", "Date": "2026-11-24", "Start": "10:00", "End": "13:00", "Day Label": "Tues, Nov 24", "Task": "Stake holes & base plates", "Needed": 2},
     {"Shift ID": "Nov24_PM", "Date": "2026-11-24", "Start": "14:00", "End": "18:00", "Day Label": "Tues, Nov 24", "Task": "Stake holes & base plates", "Needed": 2},
@@ -32,15 +32,12 @@ DEFAULT_SHIFTS = [
 # --- Live Data Fetching ---
 @st.cache_data(ttl=60)
 def fetch_live_data(url):
-    """Pulls the live CSV export directly from Google Sheets."""
     return pd.read_csv(url)
 
 def normalize_time_slot(day_key, time_str):
-    """Parses freeform multi-line poll checkboxes into exact shift IDs."""
     t = str(time_str).lower().strip()
     if not t or t == "nan":
         return []
-    
     slots = []
     lines = [line.strip() for line in t.split("\n") if line.strip()]
     for line in lines:
@@ -53,12 +50,9 @@ def normalize_time_slot(day_key, time_str):
     return list(set(slots))
 
 def parse_crew_availability(df):
-    """Dynamically parses all submitted responses from the Google Sheet."""
-    # 1. Ignore test submissions
     first_col = next((c for c in df.columns if "first" in c.lower()), df.columns[0])
     df_clean = df[~df[first_col].astype(str).str.contains('TEST|test', case=False, na=False)].copy()
     
-    # 2. De-duplicate multiple submissions by the same person (keeps latest submission)
     last_col = next((c for c in df.columns if "last" in c.lower()), df.columns[1])
     email_col = next((c for c in df.columns if "email" in c.lower()), None)
     dedup_subset = [first_col, last_col]
@@ -66,7 +60,6 @@ def parse_crew_availability(df):
         dedup_subset.append(email_col)
     df_clean = df_clean.drop_duplicates(subset=dedup_subset, keep="last")
 
-    # 3. Date mapping
     day_cols = {
         "Nov 24": "Nov24",
         "Nov 25": "Nov25",
@@ -107,7 +100,6 @@ def parse_crew_availability(df):
     return pd.DataFrame(crew_list)
 
 def check_overlap(s1, s2):
-    """Detects if two shifts on the same date overlap in time."""
     if s1['Date'] != s2['Date']:
         return False
     s1_start = datetime.strptime(s1['Start'], "%H:%M")
@@ -119,12 +111,10 @@ def check_overlap(s1, s2):
 # --- Sidebar Controls ---
 st.sidebar.title("🎪 Configuration")
 
-# Manual reload button for Google Sheets
 if st.sidebar.button("🔄 Sync with Google Sheet", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-# Slider now goes up to 15 (covering all 15 shifts)
 max_shifts = st.sidebar.slider("Maximum Shifts Per Person", min_value=1, max_value=15, value=15)
 
 # --- Load Live Data ---
@@ -140,7 +130,6 @@ except Exception as e:
 st.title("🎪 Circus Bella Bravura 2026")
 st.subheader("Tent Buildup Shift Optimizer (Live Data)")
 
-# Metric counters
 col1, col2, col3 = st.columns(3)
 col1.metric("Registered Crew Members", len(crew_df))
 col2.metric("Total Scheduled Shifts", len(DEFAULT_SHIFTS))
@@ -174,7 +163,6 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
     shift_ids = list(shifts_dict.keys())
     crew_names = crew_df['Name'].tolist()
 
-    # Expand required slots
     shift_slots = []
     for s_id in shift_ids:
         needed = int(shifts_dict[s_id]['Needed'])
@@ -183,18 +171,14 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
 
     slot_to_shift = {s: s.split("_slot")[0] for s in shift_slots}
 
-    # Initialize Optimization Model
     prob = LpProblem("Tent_Buildup_Scheduling", LpMaximize)
     x = LpVariable.dicts("assign", ((c, s) for c in crew_names for s in shift_slots), 0, 1, cat="Binary")
 
-    # Objective: Fill maximum possible slots
     prob += lpSum(x[c, s] for c in crew_names for s in shift_slots)
 
-    # Constraint 1: At most one person per slot
     for s in shift_slots:
         prob += lpSum(x[c, s] for c in crew_names) <= 1
 
-    # Constraint 2: Availability adherence
     for _, crew_row in crew_df.iterrows():
         c_name = crew_row['Name']
         avail = crew_row['Available_Shifts']
@@ -203,13 +187,11 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
             if s_id not in avail:
                 prob += x[c_name, s] == 0
 
-    # Constraint 3: No person assigned twice to the same shift
     for c in crew_names:
         for s_id in shift_ids:
             slots_for_shift = [s for s in shift_slots if slot_to_shift[s] == s_id]
             prob += lpSum(x[c, s] for s in slots_for_shift) <= 1
 
-    # Constraint 4: No overlapping shifts on the same day (e.g. Sat, Nov 28 midday vs morning/afternoon)
     for c in crew_names:
         for i in range(len(shift_ids)):
             s1_id = shift_ids[i]
@@ -220,7 +202,6 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
                     slots_s2 = [s for s in shift_slots if slot_to_shift[s] == s2_id]
                     prob += lpSum(x[c, s] for s in slots_s1) + lpSum(x[c, s] for s in slots_s2) <= 1
 
-    # Constraint 5: Cap maximum shifts per person
     for c in crew_names:
         prob += lpSum(x[c, s] for s in shift_slots) <= max_shifts
 
@@ -234,7 +215,7 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
     if prob.status == LpStatusOptimal:
         st.success("🎉 Schedule successfully generated!")
 
-        # Master Schedule Construction
+        # Master Schedule Construction with optimized column layout
         schedule_records = []
         total_unfilled = 0
         for s_id in shift_ids:
@@ -248,25 +229,62 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
 
             unfilled = len(slots) - len(assigned_people)
             total_unfilled += unfilled
+            
+            # Status badge
+            if unfilled == 0:
+                status_str = "✅ Full"
+            else:
+                status_str = f"⚠️ {unfilled} Needed"
+
             schedule_records.append({
                 "Date": s_info['Day Label'],
                 "Hours": f"{s_info['Start']} - {s_info['End']}",
                 "Task": s_info['Task'],
-                "Required": len(slots),
+                "Needed": len(slots),
+                "Unfilled": unfilled,
+                "Status": status_str,
                 "Assigned Crew": ", ".join(assigned_people) if assigned_people else "⚠️ UNFILLED",
-                "Unfilled Slots": unfilled
+                "Assigned (Stacked)": "\n".join(assigned_people) if assigned_people else "⚠️ UNFILLED"
             })
 
         schedule_res_df = pd.DataFrame(schedule_records)
 
         if total_unfilled > 0:
-            st.warning(f"⚠️ Notice: {total_unfilled} slots could not be filled with the current availability.")
+            st.warning(f"⚠️ Notice: {total_unfilled} slots could not be filled with current availability and maximum shift cap.")
 
         st.subheader("📋 Master Buildup Schedule")
-        st.dataframe(schedule_res_df, use_container_width=True, hide_index=True)
+        
+        # Display View Selector
+        view_mode = st.radio("Display View:", ["Interactive Grid (Fixed Widths)", "Printable View (Names Stacked on Lines)"], horizontal=True)
+
+        if view_mode == "Interactive Grid (Fixed Widths)":
+            st.dataframe(
+                schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Crew"]],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Date": st.column_config.TextColumn("Date", width="small"),
+                    "Hours": st.column_config.TextColumn("Hours", width="small"),
+                    "Task": st.column_config.TextColumn("Task", width="medium"),
+                    "Needed": st.column_config.NumberColumn("Needed", width="small"),
+                    "Unfilled": st.column_config.NumberColumn("Unfilled", width="small"),
+                    "Status": st.column_config.TextColumn("Status", width="small"),
+                    "Assigned Crew": st.column_config.TextColumn("Assigned Crew", width="large"),
+                }
+            )
+        else:
+            # Printable / Stacked View: Displays line breaks clearly
+            stacked_df = schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned (Stacked)"]].copy()
+            stacked_df.rename(columns={"Assigned (Stacked)": "Assigned Crew"}, inplace=True)
+            # Replace \n with <br> for HTML rendering in table view
+            stacked_html = stacked_df.to_html(escape=False, index=False).replace("\n", "<br>")
+            st.write(stacked_html, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
 
         # Download Button
-        csv_data = schedule_res_df.to_csv(index=False).encode('utf-8')
+        csv_download_df = schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Crew"]].copy()
+        csv_data = csv_download_df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Download Master Schedule as CSV",
             data=csv_data,
@@ -285,7 +303,16 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
             })
 
         st.subheader("👥 Crew Assignment Summary")
-        st.dataframe(pd.DataFrame(crew_counts).sort_values(by="Total Shifts Assigned", ascending=False), use_container_width=True, hide_index=True)
+        st.dataframe(
+            pd.DataFrame(crew_counts).sort_values(by="Total Shifts Assigned", ascending=False),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Crew Member": st.column_config.TextColumn("Crew Member", width="medium"),
+                "Total Shifts Assigned": st.column_config.NumberColumn("Total Shifts", width="small"),
+                "Assigned Shifts": st.column_config.TextColumn("Assigned Shifts", width="large")
+            }
+        )
 
     else:
         st.error("Could not find a feasible schedule satisfying all constraints. Try adjusting the availability or requirements.")
