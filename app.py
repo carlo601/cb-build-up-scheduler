@@ -277,7 +277,6 @@ if 'schedule_res_df' in st.session_state:
     )
 
     if view_mode == "Interactive Grid (Fixed Widths)":
-        # Exact widths from 'table only.png'
         st.dataframe(
             schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Crew"]],
             use_container_width=True,
@@ -293,42 +292,51 @@ if 'schedule_res_df' in st.session_state:
             }
         )
     else:
-        # Clean, true HTML table that ignores Markdown indentation rules
+        # Printable View: Task and Assigned Crew widths swapped
         stacked_df = schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Stacked"]].copy()
         stacked_df.rename(columns={"Assigned Stacked": "Assigned Crew"}, inplace=True)
         
         table_html = stacked_df.to_html(escape=False, index=False, classes="print-table")
         
-        # Zero-indentation HTML/CSS block
         clean_html = f"""<style>
 table.print-table {{
     width: 100%;
     border-collapse: collapse;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 14px;
+    font-size: 13.5px;
     margin-top: 10px;
     margin-bottom: 20px;
 }}
 table.print-table th {{
     background-color: #f1f3f5;
     border: 1px solid #ced4da;
-    padding: 10px 12px;
+    padding: 8px 10px;
     text-align: left;
     font-weight: 600;
 }}
 table.print-table td {{
     border: 1px solid #dee2e6;
-    padding: 8px 12px;
+    padding: 8px 10px;
     vertical-align: top;
-    line-height: 1.5;
+    line-height: 1.45;
 }}
 table.print-table tr:nth-child(even) {{
     background-color: #f8f9fa;
 }}
+/* Specific column widths for Print View */
+table.print-table th:nth-child(1), table.print-table td:nth-child(1) {{ width: 12%; white-space: nowrap; }} /* Date */
+table.print-table th:nth-child(2), table.print-table td:nth-child(2) {{ width: 11%; white-space: nowrap; }} /* Hours */
+table.print-table th:nth-child(3), table.print-table td:nth-child(3) {{ width: 22%; }}                     /* Task (narrower, wraps) */
+table.print-table th:nth-child(4), table.print-table td:nth-child(4) {{ width: 6%; text-align: center; }}  /* Needed */
+table.print-table th:nth-child(5), table.print-table td:nth-child(5) {{ width: 6%; text-align: center; }}  /* Unfilled */
+table.print-table th:nth-child(6), table.print-table td:nth-child(6) {{ width: 9%; white-space: nowrap; }} /* Status */
+table.print-table th:nth-child(7), table.print-table td:nth-child(7) {{ 
+    width: 34%; 
+    white-space: nowrap; /* Ensures First + Last Name never breaks across lines */
+}} 
 </style>
 {table_html}"""
         
-        # st.html() interprets pure HTML safely without Markdown parsing
         if hasattr(st, "html"):
             st.html(clean_html)
         else:
