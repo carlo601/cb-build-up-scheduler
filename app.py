@@ -239,7 +239,7 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
                 "Unfilled": unfilled,
                 "Status": status_str,
                 "Assigned Crew": ", ".join(assigned_people) if assigned_people else "⚠️ UNFILLED",
-                "Assigned Stacked": "<br>• " + "<br>• ".join(assigned_people) if assigned_people else "⚠️ UNFILLED"
+                "Assigned Stacked": "• " + "<br>• ".join(assigned_people) if assigned_people else "⚠️ UNFILLED"
             })
 
         crew_counts = []
@@ -251,7 +251,6 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
                 "Assigned Shifts": ", ".join(assigned) if assigned else "None"
             })
 
-        # Save to session_state so toggling views never resets the screen
         st.session_state['schedule_res_df'] = pd.DataFrame(schedule_records)
         st.session_state['crew_counts_df'] = pd.DataFrame(crew_counts).sort_values(by="Total Shifts Assigned", ascending=False)
         st.session_state['total_unfilled'] = total_unfilled
@@ -278,7 +277,7 @@ if 'schedule_res_df' in st.session_state:
     )
 
     if view_mode == "Interactive Grid (Fixed Widths)":
-        # Restored to the exact widths that generated "table only.png"
+        # Exact widths from 'table only.png'
         st.dataframe(
             schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Crew"]],
             use_container_width=True,
@@ -294,34 +293,46 @@ if 'schedule_res_df' in st.session_state:
             }
         )
     else:
-        # Printable / Stacked View: Formatted cleanly with HTML table styling
+        # Clean, true HTML table that ignores Markdown indentation rules
         stacked_df = schedule_res_df[["Date", "Hours", "Task", "Needed", "Unfilled", "Status", "Assigned Stacked"]].copy()
         stacked_df.rename(columns={"Assigned Stacked": "Assigned Crew"}, inplace=True)
         
-        table_html = stacked_df.to_html(escape=False, index=False)
-        styled_html = f"""
-        <style>
-            .clean-table table {{
-                width: 100%;
-                border-collapse: collapse;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                font-size: 14px;
-            }}
-            .clean-table th {{
-                background-color: #f0f2f6;
-                padding: 10px;
-                border: 1px solid #d3d3d3;
-                text-align: left;
-            }}
-            .clean-table td {{
-                padding: 10px;
-                border: 1px solid #e6e6e6;
-                vertical-align: top;
-            }}
-        </style>
-        <div class="clean-table">{table_html}</div>
-        """
-        st.markdown(styled_html, unsafe_allow_html=True)
+        table_html = stacked_df.to_html(escape=False, index=False, classes="print-table")
+        
+        # Zero-indentation HTML/CSS block
+        clean_html = f"""<style>
+table.print-table {{
+    width: 100%;
+    border-collapse: collapse;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+}}
+table.print-table th {{
+    background-color: #f1f3f5;
+    border: 1px solid #ced4da;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+}}
+table.print-table td {{
+    border: 1px solid #dee2e6;
+    padding: 8px 12px;
+    vertical-align: top;
+    line-height: 1.5;
+}}
+table.print-table tr:nth-child(even) {{
+    background-color: #f8f9fa;
+}}
+</style>
+{table_html}"""
+        
+        # st.html() interprets pure HTML safely without Markdown parsing
+        if hasattr(st, "html"):
+            st.html(clean_html)
+        else:
+            st.markdown(clean_html, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
