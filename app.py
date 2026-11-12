@@ -10,23 +10,23 @@ st.set_page_config(layout="wide", page_title="Circus Bella — Shift Scheduler",
 SHEET_ID = "15XBLzxZaRYYmUKahJh7Bx-ggPh2-qjW8PETZBRRyT3Q"
 SHEET_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
-# --- Master Shift Blueprint ---
+# --- Master Shift Blueprint (Updated Defaults & Labels) ---
 DEFAULT_SHIFTS = [
     {"Shift ID": "Nov24_AM", "Date": "2026-11-24", "Start": "10:00", "End": "13:00", "Day Label": "Tues, Nov 24", "Task": "Stake holes & base plates", "Needed": 2},
-    {"Shift ID": "Nov24_PM", "Date": "2026-11-24", "Start": "14:00", "End": "18:00", "Day Label": "Tues, Nov 24", "Task": "Stake holes & base plates", "Needed": 3},
-    {"Shift ID": "Nov25_AM", "Date": "2026-11-25", "Start": "10:00", "End": "13:00", "Day Label": "Wed, Nov 25", "Task": "Unload Mayflower, arch & signage", "Needed": 2},
-    {"Shift ID": "Nov25_PM", "Date": "2026-11-25", "Start": "14:00", "End": "18:00", "Day Label": "Wed, Nov 25", "Task": "Back-of-house stakes", "Needed": 2},
-    {"Shift ID": "Nov27_AM", "Date": "2026-11-27", "Start": "10:00", "End": "13:00", "Day Label": "Fri, Nov 27", "Task": "Tent setup, lacing, cupola lights", "Needed": 3},
-    {"Shift ID": "Nov27_PM", "Date": "2026-11-27", "Start": "14:00", "End": "18:00", "Day Label": "Fri, Nov 27", "Task": "Tent raising, side poles, rigging", "Needed": 4},
-    {"Shift ID": "Nov28_AM", "Date": "2026-11-28", "Start": "10:00", "End": "14:00", "Day Label": "Sat, Nov 28", "Task": "Sidewalls, Power, Signage", "Needed": 1},
-    {"Shift ID": "Nov28_MID", "Date": "2026-11-28", "Start": "12:00", "End": "16:00", "Day Label": "Sat, Nov 28", "Task": "Midday Sidewalls & Power", "Needed": 1},
-    {"Shift ID": "Nov28_PM", "Date": "2026-11-28", "Start": "14:00", "End": "18:00", "Day Label": "Sat, Nov 28", "Task": "Afternoon Sidewalls & Power", "Needed": 2},
+    {"Shift ID": "Nov24_PM", "Date": "2026-11-24", "Start": "14:00", "End": "18:00", "Day Label": "Tues, Nov 24", "Task": "Stake holes & base plates", "Needed": 2},
+    {"Shift ID": "Nov25_AM", "Date": "2026-11-25", "Start": "10:00", "End": "13:00", "Day Label": "Wed, Nov 25", "Task": "Unload Mayflower, arch & signage", "Needed": 6},
+    {"Shift ID": "Nov25_PM", "Date": "2026-11-25", "Start": "14:00", "End": "18:00", "Day Label": "Wed, Nov 25", "Task": "Back-of-house stakes", "Needed": 6},
+    {"Shift ID": "Nov27_AM", "Date": "2026-11-27", "Start": "10:00", "End": "13:00", "Day Label": "Fri, Nov 27", "Task": "Tent setup, lacing, cupola lights", "Needed": 4},
+    {"Shift ID": "Nov27_PM", "Date": "2026-11-27", "Start": "14:00", "End": "18:00", "Day Label": "Fri, Nov 27", "Task": "Tent raising, side poles, rigging", "Needed": 6},
+    {"Shift ID": "Nov28_AM", "Date": "2026-11-28", "Start": "10:00", "End": "14:00", "Day Label": "Sat, Nov 28", "Task": "Sidewalls, Power, Signage (Tent 4/Lights 2)", "Needed": 6},
+    {"Shift ID": "Nov28_MID", "Date": "2026-11-28", "Start": "12:00", "End": "16:00", "Day Label": "Sat, Nov 28", "Task": "Treasure Island Storage run w Abigail", "Needed": 4},
+    {"Shift ID": "Nov28_PM", "Date": "2026-11-28", "Start": "14:00", "End": "18:00", "Day Label": "Sat, Nov 28", "Task": "Afternoon Sidewalls & Power (Tent 4/Lights 2)", "Needed": 4},
     {"Shift ID": "Nov29_AM", "Date": "2026-11-29", "Start": "10:00", "End": "14:00", "Day Label": "Sun, Nov 29", "Task": "Tent Wash, remaining sidewall", "Needed": 2},
     {"Shift ID": "Nov29_PM", "Date": "2026-11-29", "Start": "14:00", "End": "18:00", "Day Label": "Sun, Nov 29", "Task": "Tent Wash, remaining sidewall", "Needed": 2},
     {"Shift ID": "Nov30_AM", "Date": "2026-11-30", "Start": "10:00", "End": "14:00", "Day Label": "Mon, Nov 30", "Task": "Bandstand, header, façade", "Needed": 2},
-    {"Shift ID": "Nov30_PM", "Date": "2026-11-30", "Start": "14:00", "End": "18:00", "Day Label": "Mon, Nov 30", "Task": "Green room & bandstand", "Needed": 2},
+    {"Shift ID": "Nov30_PM", "Date": "2026-11-30", "Start": "14:00", "End": "18:00", "Day Label": "Mon, Nov 30", "Task": "Green room & bandstand (Abigail 4/Lights 2)", "Needed": 6},
     {"Shift ID": "Dec01_AM", "Date": "2026-12-01", "Start": "10:00", "End": "14:00", "Day Label": "Tues, Dec 1", "Task": "Truss, curtain rails, ladders", "Needed": 2},
-    {"Shift ID": "Dec01_PM", "Date": "2026-12-01", "Start": "14:00", "End": "18:00", "Day Label": "Tues, Dec 1", "Task": "Backstage & green room", "Needed": 2},
+    {"Shift ID": "Dec01_PM", "Date": "2026-12-01", "Start": "14:00", "End": "18:00", "Day Label": "Tues, Dec 1", "Task": "Backstage & green room (Abigail 4)", "Needed": 4},
 ]
 
 # --- Live Data Fetching ---
@@ -58,7 +58,7 @@ def parse_crew_availability(df):
     first_col = next((c for c in df.columns if "first" in c.lower()), df.columns[0])
     df_clean = df[~df[first_col].astype(str).str.contains('TEST|test', case=False, na=False)].copy()
     
-    # 2. De-duplicate multiple submissions by the same person (keeps the latest submission)
+    # 2. De-duplicate multiple submissions by the same person (keeps latest submission)
     last_col = next((c for c in df.columns if "last" in c.lower()), df.columns[1])
     email_col = next((c for c in df.columns if "email" in c.lower()), None)
     dedup_subset = [first_col, last_col]
@@ -77,7 +77,6 @@ def parse_crew_availability(df):
         "Dec 1": "Dec01"
     }
 
-    # Find notes column
     notes_col = next((c for c in df.columns if any(k in c.lower() for k in ["conflict", "notes", "beyond", "aforementioned"])), None)
 
     crew_list = []
@@ -125,7 +124,8 @@ if st.sidebar.button("🔄 Sync with Google Sheet", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-max_shifts = st.sidebar.slider("Maximum Shifts Per Person", min_value=1, max_value=10, value=4)
+# Slider now goes up to 15 (covering all 15 shifts)
+max_shifts = st.sidebar.slider("Maximum Shifts Per Person", min_value=1, max_value=15, value=15)
 
 # --- Load Live Data ---
 try:
@@ -260,7 +260,7 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
         schedule_res_df = pd.DataFrame(schedule_records)
 
         if total_unfilled > 0:
-            st.warning(f"⚠️ Notice: {total_unfilled} slots could not be filled with the current availability and maximum shift cap.")
+            st.warning(f"⚠️ Notice: {total_unfilled} slots could not be filled with the current availability.")
 
         st.subheader("📋 Master Buildup Schedule")
         st.dataframe(schedule_res_df, use_container_width=True, hide_index=True)
@@ -288,4 +288,4 @@ if st.button("🚀 Generate Optimized Schedule", type="primary", use_container_w
         st.dataframe(pd.DataFrame(crew_counts).sort_values(by="Total Shifts Assigned", ascending=False), use_container_width=True, hide_index=True)
 
     else:
-        st.error("Could not find a feasible schedule satisfying all constraints. Try increasing the 'Maximum Shifts Per Person' slider.")
+        st.error("Could not find a feasible schedule satisfying all constraints. Try adjusting the availability or requirements.")
